@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: engagement-platform-config
+  namespace: engagement-platform-prod
+data:
+  DEBUG: "False"
+  POSTGRES_DB: "engagement_platform"
+  POSTGRES_USER: "postgres"
+  REDIS_PASSWORD: "redis-password"
+  MINIO_ROOT_USER: "minioadmin"
+  ML_SERVICE_URL: "http://ml-service:8001"
+  TRACKER_SERVICE_URL: "http://tracker-service:8002"
+  REACT_APP_API_URL: "https://api.engagement-platform.com/api/v1"
+  REACT_APP_ML_SERVICE_URL: "https://ml.engagement-platform.com"

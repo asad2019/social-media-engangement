@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: engagement-platform-prod
+  labels:
+    name: engagement-platform-prod
+    environment: production

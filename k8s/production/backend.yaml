@@ -1,0 +1,209 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: engagement-platform-prod
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: backend
+        image: your-registry/engagement-platform-backend:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: DEBUG
+          valueFrom:
+            configMapKeyRef:
+              name: engagement-platform-config
+              key: DEBUG
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: engagement-platform-secrets
+              key: SECRET_KEY
+        - name: DATABASE_URL
+          value: "postgresql://postgres:$(POSTGRES_PASSWORD)@postgres:5432/engagement_platform"
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: engagement-platform-secrets
+              key: POSTGRES_PASSWORD
+        - name: REDIS_URL
+          value: "redis://:$(REDIS_PASSWORD)@redis:6379/0"
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: engagement-platform-secrets
+              key: REDIS_PASSWORD
+        - name: ML_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: engagement-platform-config
+              key: ML_SERVICE_URL
+        - name: TRACKER_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: engagement-platform-config
+              key: TRACKER_SERVICE_URL
+        - name: STRIPE_PUBLISHABLE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: engagement-platform-secrets
+              key: STRIPE_PUBLISHABLE_KEY
+        - name: STRIPE_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: engagement-platform-secrets
+              key: STRIPE_SECRET_KEY
+        - name: STRIPE_WEBHOOK_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: engagement-platform-secrets
+              key: STRIPE_WEBHOOK_SECRET
+        livenessProbe:
+          httpGet:
+            path: /api/v1/health/
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /api/v1/health/
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: engagement-platform-prod
+spec:
+  selector:
+    app: backend
+  ports:
+  - port: 8000
+    targetPort: 8000
+  type: ClusterIP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: celery-worker
+  namespace: engagement-platform-prod
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: celery-worker
+  template:
+    metadata:
+      labels:
+        app: celery-worker
+    spec:
+      containers:
+      - name: celery-worker
+        image: your-registry/engagement-platform-backend:latest
+        command: ["celery", "-A", "engagement_platform", "worker", "-l", "info", "--concurrency=4"]
+        env:
+        - name: DEBUG
+          valueFrom:
+            configMapKeyRef:
+              name: engagement-platform-config
+              key: DEBUG
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: engagement-platform-secrets
+              key: SECRET_KEY
+        - name: DATABASE_URL
+          value: "postgresql://postgres:$(POSTGRES_PASSWORD)@postgres:5432/engagement_platform"
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: engagement-platform-secrets
+              key: POSTGRES_PASSWORD
+        - name: REDIS_URL
+          value: "redis://:$(REDIS_PASSWORD)@redis:6379/0"
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: engagement-platform-secrets
+              key: REDIS_PASSWORD
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "125m"
+          limits:
+            memory: "512Mi"
+            cpu: "250m"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: celery-beat
+  namespace: engagement-platform-prod
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: celery-beat
+  template:
+    metadata:
+      labels:
+        app: celery-beat
+    spec:
+      containers:
+      - name: celery-beat
+        image: your-registry/engagement-platform-backend:latest
+        command: ["celery", "-A", "engagement_platform", "beat", "-l", "info"]
+        env:
+        - name: DEBUG
+          valueFrom:
+            configMapKeyRef:
+              name: engagement-platform-config
+              key: DEBUG
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: engagement-platform-secrets
+              key: SECRET_KEY
+        - name: DATABASE_URL
+          value: "postgresql://postgres:$(POSTGRES_PASSWORD)@postgres:5432/engagement_platform"
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: engagement-platform-secrets
+              key: POSTGRES_PASSWORD
+        - name: REDIS_URL
+          value: "redis://:$(REDIS_PASSWORD)@redis:6379/0"
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: engagement-platform-secrets
+              key: REDIS_PASSWORD
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "100m"
